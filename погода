@@ -1,0 +1,467 @@
+import flet as ft
+from abc import ABC, abstractmethod
+from datetime import datetime
+import random
+
+
+# ══════════════════════════════════════════════════════════════
+# ТРЕБОВАНИЕ 8: ЗАПРЕТ dict → КАСТОМНЫЙ КЛАСС-МАППИНГ
+# ══════════════════════════════════════════════════════════════
+class CustomMap:
+    """Замена dict: хранит пары ключ-значение в двух списках."""
+
+    def __init__(self):
+        self._keys: list = []
+        self._values: list = []
+
+    def put(self, key, value) -> None:
+        if key in self._keys:
+            self._values[self._keys.index(key)] = value
+        else:
+            self._keys.append(key)
+            self._values.append(value)
+
+    def get(self, key, default=None):
+        return self._values[self._keys.index(key)] if key in self._keys else default
+
+    def __len__(self):
+        return len(self._keys)
+
+    def __eq__(self, other):
+        return isinstance(other, CustomMap) and self._keys == other._keys
+
+    def __repr__(self):
+        return f"CustomMap({list(zip(self._keys, self._values))})"
+
+    def __str__(self):
+        return " | ".join(f"{k}→{v}" for k, v in zip(self._keys, self._values))
+
+
+# ══════════════════════════════════════════════════════════════
+# ТРЕБОВАНИЕ 4: АБСТРАКТНЫЙ КЛАСС (погода)
+# ══════════════════════════════════════════════════════════════
+class BaseWeather(ABC):
+    """Абстрактный базовый класс для всех погодных сущностей."""
+
+    @abstractmethod
+    def get_icon(self) -> str: ...
+
+    @abstractmethod
+    def get_description(self) -> str: ...
+
+
+# ══════════════════════════════════════════════════════════════
+# ТРЕБОВАНИЕ 1, 4, 5, 6, 7: КЛАСС ПОГОДЫ
+# ══════════════════════════════════════════════════════════════
+class Weather(BaseWeather):
+    def __init__(self, city: str, temp: float, condition: str):
+        self._city = city
+        self._temp = temp
+        self._condition = condition
+
+    # --- ТРЕБОВАНИЕ 7: ГЕТТЕРЫ И СЕТТЕРЫ ---
+    @property
+    def city(self) -> str:
+        return self._city
+
+    @city.setter
+    def city(self, value: str) -> None:
+        self._city = value
+
+    @property
+    def temp(self) -> float:
+        return self._temp
+
+    @temp.setter
+    def temp(self, value: float) -> None:
+        self._temp = value
+
+    @property
+    def condition(self) -> str:
+        return self._condition
+
+    @condition.setter
+    def condition(self, value: str) -> None:
+        self._condition = value
+
+    # --- ТРЕБОВАНИЕ 4: РЕАЛИЗАЦИЯ АБСТРАКТНЫХ МЕТОДОВ ---
+    def get_icon(self) -> str:
+        mapping = CustomMap()
+        mapping.put("Дождь", "🌧️")
+        mapping.put("Солнечно", "☀️")
+        mapping.put("Облачно", "☁️")
+        mapping.put("Ясно", "🌤️")
+        mapping.put("Пасмурно", "🌫️")
+        return mapping.get(self._condition, "🌡️")
+
+    def get_description(self) -> str:
+        return f"{self._city}: {self._temp}°C, {self._condition}"
+
+    # --- ТРЕБОВАНИЕ 5: СПЕЦИАЛЬНЫЕ МЕТОДЫ ---
+    def __eq__(self, other):
+        return isinstance(other, Weather) and self._city == other._city
+
+    def __lt__(self, other):
+        """ТРЕБОВАНИЕ 6: сравнимость — сортировка по температуре."""
+        return self._temp < other._temp
+
+    def __hash__(self):
+        return hash(self._city)
+
+    def __repr__(self):
+        return f"Weather(city='{self._city}', temp={self._temp})"
+
+    def __str__(self):
+        return self.get_description()
+
+
+# ══════════════════════════════════════════════════════════════
+# НАСЛЕДНИК: РАСШИРЕННАЯ ПОГОДА
+# ══════════════════════════════════════════════════════════════
+class DetailedWeather(Weather):
+    def __init__(self, city, temp, condition, humidity: int, wind: float):
+        super().__init__(city, temp, condition)
+        self._humidity = humidity
+        self._wind = wind
+
+    @property
+    def humidity(self) -> int:
+        return self._humidity
+
+    @humidity.setter
+    def humidity(self, value: int) -> None:
+        self._humidity = value
+
+    @property
+    def wind(self) -> float:
+        return self._wind
+
+    @wind.setter
+    def wind(self, value: float) -> None:
+        self._wind = value
+
+    def get_description(self) -> str:
+        return (f"{self._city}: {self._temp}°C, {self._condition}, "
+                f"💧{self._humidity}%, 🌬️{self._wind} м/с")
+
+    def __eq__(self, other):
+        return isinstance(other, DetailedWeather) and self._city == other._city
+
+    def __lt__(self, other):
+        return self._temp < other._temp
+
+    def __hash__(self):
+        return hash(self._city)
+
+    def __repr__(self):
+        return f"DetailedWeather(city='{self._city}', humidity={self._humidity})"
+
+    def __str__(self):
+        return self.get_description()
+
+
+# ══════════════════════════════════════════════════════════════
+# АБСТРАКТНЫЙ КЛАСС ПОЛЬЗОВАТЕЛЯ
+# ══════════════════════════════════════════════════════════════
+class BaseUser(ABC):
+    @abstractmethod
+    def get_role(self) -> str: ...
+
+
+# ══════════════════════════════════════════════════════════════
+# КЛАСС ПОЛЬЗОВАТЕЛЯ (для отчёта)
+# ══════════════════════════════════════════════════════════════
+class User(BaseUser):
+    def __init__(self, login: str, time_in: datetime):
+        self._login = login
+        self._time_in = time_in
+        self._time_out: datetime | None = None
+
+    @property
+    def login(self) -> str:
+        return self._login
+
+    @login.setter
+    def login(self, value: str) -> None:
+        self._login = value
+
+    @property
+    def time_in(self) -> datetime:
+        return self._time_in
+
+    @time_in.setter
+    def time_in(self, value: datetime) -> None:
+        self._time_in = value
+
+    @property
+    def time_out(self):
+        return self._time_out
+
+    @time_out.setter
+    def time_out(self, value) -> None:
+        self._time_out = value
+
+    def get_role(self) -> str:
+        return "Гость"
+
+    def __eq__(self, other):
+        return isinstance(other, User) and self._login == other._login
+
+    def __lt__(self, other):
+        return self._time_in < other._time_in
+
+    def __hash__(self):
+        return hash(self._login)
+
+    def __repr__(self):
+        return f"User(login='{self._login}')"
+
+    def __str__(self):
+        return f"{self._login} (вход: {self._time_in.strftime('%d.%m.%Y %H:%M:%S')})"
+
+
+# ══════════════════════════════════════════════════════════════
+# ТРЕБОВАНИЕ 2: ПЕРЕОПРЕДЕЛЕНИЕ UI-КОМПОНЕНТА
+# (класс наследуется от ft.Column и переопределяет его поведение)
+# ══════════════════════════════════════════════════════════════
+class WeatherCard(ft.Column):
+    """Кастомная карточка погоды — наследник ft.Column."""
+
+    def __init__(self, weather: DetailedWeather):
+        super().__init__()
+        self._weather = weather
+
+        self._icon = ft.Text(weather.get_icon(), size=36,
+                             text_align=ft.TextAlign.CENTER)
+        self._city = ft.Text(weather.city, size=18, weight=ft.FontWeight.BOLD,
+                             text_align=ft.TextAlign.CENTER)
+        self._temp = ft.Text(f"{weather.temp}°C", size=26, color=ft.Colors.BLUE,
+                             weight=ft.FontWeight.BOLD,
+                             text_align=ft.TextAlign.CENTER)
+        self._cond = ft.Text(weather.condition, size=14, italic=True,
+                             text_align=ft.TextAlign.CENTER)
+        self._details = ft.Text(f"💧 {weather.humidity}%  🌬️ {weather.wind} м/с",
+                                size=12, color=ft.Colors.GREY_700,
+                                text_align=ft.TextAlign.CENTER)
+
+        self.controls = [self._icon, self._city, self._temp, self._cond, self._details]
+        self.alignment = ft.MainAxisAlignment.CENTER
+        self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+        self.width = 170
+        self.padding = 12
+        self.bgcolor = ft.Colors.BLUE_50
+        self.border_radius = 12
+
+    @property
+    def weather(self) -> DetailedWeather:
+        return self._weather
+
+    @weather.setter
+    def weather(self, value: DetailedWeather) -> None:
+        self._weather = value
+
+    def refresh(self) -> None:
+        self._icon.value = self._weather.get_icon()
+        self._city.value = self._weather.city
+        self._temp.value = f"{self._weather.temp}°C"
+        self._cond.value = self._weather.condition
+        self._details.value = f"💧 {self._weather.humidity}%  🌬️ {self._weather.wind} м/с"
+        self.update()
+
+    def __eq__(self, other):
+        return isinstance(other, WeatherCard) and self._weather == other._weather
+
+    def __hash__(self):
+        return hash(self._weather.city)
+
+
+def __repr__(self):
+    return f"WeatherCard(city='{self._weather.city}')"
+
+    def __str__(self):
+        return f"Карточка: {self._weather.city}"
+
+
+# ══════════════════════════════════════════════════════════════
+# ТРЕБОВАНИЕ 3: КЛАСС ОТЧЁТА (методы класса и объекта)
+# ══════════════════════════════════════════════════════════════
+class ReportManager:
+    def __init__(self, filename: str = "report.txt"):
+        self._filename = filename
+
+    @property
+    def filename(self) -> str:
+        return self._filename
+
+    @filename.setter
+    def filename(self, value: str) -> None:
+        self._filename = value
+
+    @staticmethod
+    def format_line(login: str, time_in: datetime, time_out: datetime) -> str:
+        """@staticmethod — форматирует одну строку отчёта."""
+        ti = time_in.strftime("%d.%m.%Y %H:%M:%S") if time_in else "N/A"
+        to = time_out.strftime("%d.%m.%Y %H:%M:%S") if time_out else "N/A"
+        return f"| {login:<10} | {ti:<20} | {to:<20} |"
+
+    def save(self, user: User) -> None:
+        """Метод объекта — сохраняет отчёт в файл."""
+        border = "+" + "-" * 12 + "+" + "-" * 22 + "+" + "-" * 22 + "+"
+        header = f"| {'login':<10} | {'time_in':<20} | {'time_out':<20} |"
+        line = self.format_line(user.login, user.time_in, user.time_out)
+        report = "\n".join([border, header, border, line, border])
+        with open(self._filename, "w", encoding="utf-8") as f:
+            f.write(report)
+
+    def __eq__(self, other):
+        return isinstance(other, ReportManager) and self._filename == other._filename
+
+    def __repr__(self):
+        return f"ReportManager(filename='{self._filename}')"
+
+    def __str__(self):
+        return f"Менеджер отчётов: {self._filename}"
+
+
+# ══════════════════════════════════════════════════════════════
+# ГЛАВНОЕ ПРИЛОЖЕНИЕ
+# ══════════════════════════════════════════════════════════════
+def main(page: ft.Page):
+    page.title = "🌦️ Прогноз погоды"
+    page.window_width = 950
+    page.window_height = 720
+    page.padding = 20
+    page.bgcolor = ft.Colors.WHITE
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.scroll = ft.ScrollMode.AUTO
+
+    # ─── ТРЕБОВАНИЕ 10: 10+ ПОЛЬЗОВАТЕЛЬСКИХ ОБЪЕКТОВ ───
+    cities = ["Москва", "Санкт-Петербург", "Казань", "Сочи", "Омск",
+              "Уфа", "Тверь", "Пермь", "Тула", "Иркутск"]
+    conditions = ["Солнечно", "Облачно", "Дождь", "Ясно", "Пасмурно"]
+
+    weather_list: list[DetailedWeather] = []
+    for city in cities:
+        weather_list.append(DetailedWeather(
+            city=city,
+            temp=round(random.uniform(-15, 30), 1),
+            condition=random.choice(conditions),
+            humidity=random.randint(30, 90),
+            wind=round(random.uniform(1, 10), 1)
+        ))
+
+    # ─── ТРЕБОВАНИЕ 8: МАППИНГ ЧЕРЕЗ СВОЙ КЛАСС ───
+    weather_map = CustomMap()
+    for w in weather_list:
+        weather_map.put(w.city, w)
+
+    # ─── ТРЕБОВАНИЕ 9: UI-КОМПОНЕНТЫ (5+) ───
+    title = ft.Text("🌦️ Прогноз погоды", size=30,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER)
+
+    login_input = ft.TextField(label="Введите логин", width=350,
+                               text_align=ft.TextAlign.LEFT)
+
+    login_btn = ft.ElevatedButton("Войти в систему", width=350,
+                                  bgcolor=ft.Colors.BLUE_200)
+
+    welcome_text = ft.Text("", size=16, color=ft.Colors.GREEN,
+                           text_align=ft.TextAlign.CENTER)
+
+    city_dropdown = ft.Dropdown(
+        label="Выберите город",
+        width=350,
+        options=[ft.dropdown.Option(c) for c in cities]
+    )
+
+    show_btn = ft.ElevatedButton("Показать погоду", width=350,
+                                 bgcolor=ft.Colors.GREEN_200)
+
+    result_text = ft.Text("", size=18, weight=ft.FontWeight.BOLD,
+                          text_align=ft.TextAlign.CENTER)
+
+    divider1 = ft.Divider()
+    divider2 = ft.Divider()
+    section_title = ft.Text("Погода в городах:", size=22,
+                            weight=ft.FontWeight.BOLD,
+                            text_align=ft.TextAlign.CENTER)
+
+    cards_row = ft.Row(wrap=True,
+                       alignment=ft.MainAxisAlignment.CENTER,
+                       spacing=15, run_spacing=15)
+
+    # ─── СОСТОЯНИЕ ───
+    current_user: User | None = None
+    report_manager = ReportManager("report.txt")
+
+    # ─── ТРЕБОВАНИЕ 3: ЛОГИКА ЧЕРЕЗ МЕТОДЫ ───
+    def on_login(e):
+        nonlocal current_user
+        if not login_input.value.strip():
+            welcome_text.value = "Введите логин!"
+            welcome_text.color = ft.Colors.RED
+            page.update()
+            return
+        current_user = User(login_input.value.strip(), datetime.now())
+        welcome_text.value = (f"Добро пожаловать, {current_user.login}! "
+                              f"Роль: {current_user.get_role()}")
+        welcome_text.color = ft.Colors.GREEN
+        login_input.disabled = True
+        login_btn.disabled = True
+        page.update()
+
+    def on_show(e):
+        if not city_dropdown.value:
+            result_text.value = "Выберите город"
+            result_text.color = ft.Colors.RED
+            page.update()
+            return
+        w = weather_map.get(city_dropdown.value)
+        result_text.value = f"{w.get_icon()} {w.get_description()}"
+        result_text.color = ft.Colors.BLACK
+        page.update()
+
+    login_btn.on_click = on_login
+    show_btn.on_click = on_show
+
+    # ─── КАРТОЧКИ ПОГОДЫ ───
+    cards = [WeatherCard(w) for w in weather_list]
+    cards_row.controls = cards
+
+    # ─── ТРЕБОВАНИЕ 11: ВЫРАВНИВАНИЕ КОМПОНЕНТОВ ───
+    container = ft.Column(
+        controls=[
+            title,
+            divider1,
+            login_input,
+            login_btn,
+            welcome_text,
+            divider2,
+            city_dropdown,
+            show_btn,
+            result_text,
+            ft.Divider(),
+            section_title,
+            cards_row
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=12
+    )
+    page.add(container)
+
+    # ─── ТРЕБОВАНИЕ 12: СОХРАНЕНИЕ ОТЧЁТА ПРИ ЗАКРЫТИИ ───
+    def on_disconnect(e):
+        if current_user is not None:
+            current_user.time_out = datetime.now()
+            try:
+                report_manager.save(current_user)
+            except Exception as ex:
+                print("Ошибка сохранения отчёта:", ex)
+
+    page.on_disconnect = on_disconnect
+
+
+if __name__ == "__main__":
+    ft.app(target = main)
